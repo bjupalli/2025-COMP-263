@@ -1,182 +1,101 @@
 <!DOCTYPE html>
 <html lang="en">
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Offline Library (Minimal IndexedDB)</title>
+<title>IndexedDB Minimal Read/Write</title>
 
-<style>
-  body { font-family: system-ui, Arial, sans-serif; margin: 20px; }
-  label { display:block; margin-top:8px; }
-  input { width: 100%; max-width: 360px; padding: 6px; }
-  button { margin-top: 10px; padding: 6px 10px; }
-  table { border-collapse: collapse; margin-top: 16px; width: 100%; max-width: 980px; }
-  th, td { border: 1px solid #ddd; padding: 6px; text-align: left; font-size: 14px; }
-  small { color: #666; }
-</style>
+<h1>Offline Library (Minimal)</h1>
 
-<h1>Offline Library — Borrowed Books</h1>
-
-<section>
-  <label>ID (leave empty for auto)</label>
-  <input id="id" placeholder="auto" />
-
-  <label>Title</label>
-  <input id="title" placeholder="Introduction to Databases" />
-
-  <label>Author</label>
-  <input id="author" placeholder="Jane Doe" />
-
-  <label>Borrower</label>
-  <input id="borrower" placeholder="Alice" />
-
-  <label>Borrowed At (UTC)</label>
+<div>
+  <div>ID (leave empty for auto)</div>
+  <input id="id" />
+  <div>Title</div>
+  <input id="title" />
+  <div>Author</div>
+  <input id="author" />
+  <div>Borrower</div>
+  <input id="borrower" />
+  <div>Borrowed At (datetime-local)</div>
   <input id="borrowedAt" type="datetime-local" />
-
-  <label>Due At (UTC)</label>
+  <div>Due At (datetime-local)</div>
   <input id="dueAt" type="datetime-local" />
+</div>
 
-  <div>
-    <button id="save">Save</button>
-    <button id="clear">Clear</button>
-  </div>
-  <small id="msg"></small>
-</section>
+<p>
+  <button id="saveBtn">Save</button>
+  <button id="loadBtn">Load All</button>
+</p>
 
-<table>
-  <thead>
-    <tr>
-      <th>ID</th>
-      <th>Title / Author</th>
-      <th>Borrower</th>
-      <th>Borrowed At</th>
-      <th>Due At</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody id="rows"></tbody>
-</table>
+<pre id="out"></pre>
 
 <script>
-  // ---- tiny helpers ----
+  // very small helper
   const $ = (id) => document.getElementById(id);
-  const isoNow = () => new Date().toISOString();
-  const toISO = (local) => local ? new Date(local).toISOString() : null;
-  const toLocal = (iso) => {
-    if (!iso) return "";
-    const d = new Date(iso);
-    const p = (n) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
-  };
-  const say = (t, ms=1500) => { $("msg").textContent = t; if (ms) setTimeout(()=>$("msg").textContent="", ms); };
 
-  // ---- db ----
+  // open DB
   let db;
-  const DB = "libraryDB", STORE = "books";
-  const openDB = () => new Promise((res, rej) => {
-    const r = indexedDB.open(DB, 1);
-    r.onupgradeneeded = () => {
-      const db = r.result;
-      if (!db.objectStoreNames.contains(STORE)) {
-        db.createObjectStore(STORE, { keyPath: "id" });
-      }
-    };
-    r.onsuccess = () => (db = r.result, res(db));
-    r.onerror = () => rej(r.error);
-  });
-  const store = (mode="readonly") => db.transaction(STORE, mode).objectStore(STORE);
-  const put = (x) => new Promise((res, rej) => { const q = store("readwrite").put(x); q.onsuccess=()=>res(); q.onerror=()=>rej(q.error); });
-  const del = (id) => new Promise((res, rej) => { const q = store("readwrite").delete(id); q.onsuccess=()=>res(); q.onerror=()=>rej(q.error); });
-  const all = () => new Promise((res, rej) => { const q = store().getAll(); q.onsuccess=()=>res(q.result||[]); q.onerror=()=>rej(q.error); });
+  const DB_NAME = "libraryDB_min";
+  const STORE = "books";
 
-  // ---- ui ----
-  function clearForm() {
-    $("id").value = "";
-    $("title").value = "";
-    $("author").value = "";
-    $("borrower").value = "";
-    $("borrowedAt").value = "";
-    $("dueAt").value = "";
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(STORE)) {
+          db.createObjectStore(STORE, { keyPath: "id" });
+        }
+      };
+      req.onsuccess = () => { db = req.result; resolve(); };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function store(mode = "readonly") {
+    return db.transaction(STORE, mode).objectStore(STORE);
+  }
+
+  function put(record) {
+    return new Promise((resolve, reject) => {
+      const q = store("readwrite").put(record);
+      q.onsuccess = () => resolve();
+      q.onerror = () => reject(q.error);
+    });
+  }
+
+  function getAll() {
+    return new Promise((resolve, reject) => {
+      const q = store().getAll();
+      q.onsuccess = () => resolve(q.result || []);
+      q.onerror = () => reject(q.error);
+    });
+  }
+
+  function toISO(local) {
+    return local ? new Date(local).toISOString() : null;
   }
 
   async function save() {
-    const id = $("id").value.trim() || (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(16).slice(2));
-    const title = $("title").value.trim();
-    const author = $("author").value.trim();
-    if (!title || !author) return say("Title and Author required", 2000);
-
-    const book = {
-      id,
-      title,
-      author,
-      borrower: $("borrower").value.trim(),
+    const record = {
+      id: $("id").value.trim() || (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(16).slice(2)),
+      title: $("title").value,
+      author: $("author").value,
+      borrower: $("borrower").value,
       borrowedAt: toISO($("borrowedAt").value),
-      dueAt: toISO($("dueAt").value),
-      metadata: { updatedAt: isoNow(), createdAt: isoNow() }
+      dueAt: toISO($("dueAt").value)
     };
-
-    // preserve createdAt if updating
-    const existing = (await all()).find(b => b.id === id);
-    if (existing?.metadata?.createdAt) book.metadata.createdAt = existing.metadata.createdAt;
-
-    await put(book);
-    say("Saved");
-    clearForm();
-    render();
+    await put(record);
+    $("out").textContent = "Saved:\n" + JSON.stringify(record, null, 2);
   }
 
-  async function edit(id) {
-    const b = (await all()).find(x => x.id === id);
-    if (!b) return;
-    $("id").value = b.id;
-    $("title").value = b.title || "";
-    $("author").value = b.author || "";
-    $("borrower").value = b.borrower || "";
-    $("borrowedAt").value = toLocal(b.borrowedAt);
-    $("dueAt").value = toLocal(b.dueAt);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  async function loadAll() {
+    const rows = await getAll();
+    $("out").textContent = JSON.stringify(rows, null, 2);
   }
 
-  async function remove(id) {
-    if (!confirm("Delete this record?")) return;
-    await del(id);
-    say("Deleted");
-    render();
-  }
-
-  async function render() {
-    const list = await all();
-    list.sort((a,b) => (Date.parse(a.dueAt||"")||Infinity) - (Date.parse(b.dueAt||"")||Infinity));
-    const tbody = $("rows");
-    tbody.innerHTML = "";
-    for (const b of list) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${esc(b.id)}</td>
-        <td><strong>${esc(b.title)}</strong><br><small>${esc(b.author)}</small></td>
-        <td>${esc(b.borrower||"")}</td>
-        <td><small>${b.borrowedAt ? new Date(b.borrowedAt).toLocaleString() : "—"}</small></td>
-        <td><small>${b.dueAt ? new Date(b.dueAt).toLocaleString() : "—"}</small></td>
-        <td>
-          <button onclick="edit('${b.id.replace(/'/g, "\\'")}')">Edit</button>
-          <button onclick="remove('${b.id.replace(/'/g, "\\'")}')">Delete</button>
-        </td>`;
-      tbody.appendChild(tr);
-    }
-  }
-
-  function esc(s){ return String(s||"").replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
-
-  // ---- boot ----
-  (async function init(){
+  (async function init() {
     await openDB();
-    // set defaults: borrowedAt now, dueAt +14d
-    const now = new Date(), plus14 = new Date(now.getTime() + 14*86400000);
-    $("borrowedAt").value = toLocal(now.toISOString());
-    $("dueAt").value = toLocal(plus14.toISOString());
-
-    $("save").onclick = save;
-    $("clear").onclick = clearForm;
-    await render();
+    $("saveBtn").onclick = save;
+    $("loadBtn").onclick = loadAll;
   })();
 </script>
 </html>
