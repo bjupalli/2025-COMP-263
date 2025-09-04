@@ -1,399 +1,182 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>Offline Library (IndexedDB)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    :root { --bg:#0b0e14; --fg:#e6e6e6; --muted:#9aa0a6; --accent:#ffd166; --card:#131722; --ok:#2ecc71; --warn:#e67e22; --err:#e74c3c; }
-    body { margin:0; font-family:system-ui,Segoe UI,Roboto,Inter,Arial; background:var(--bg); color:var(--fg);}
-    header { padding:16px 20px; border-bottom:1px solid #222; }
-    header h1 { margin:0; font-size:22px; }
-    main { max-width:960px; margin:0 auto; padding:20px; display:grid; gap:18px; }
-    .card { background:var(--card); border:1px solid #1f2430; border-radius:12px; padding:16px; }
-    .row { display:flex; flex-wrap:wrap; gap:12px; }
-    .field { flex:1 1 220px; display:flex; flex-direction:column; gap:6px; }
-    label { font-size:13px; color:var(--muted); }
-    input, select { background:#0f1320; color:var(--fg); border:1px solid #242b3a; border-radius:8px; padding:10px; font-size:14px; }
-    input[type="date"], input[type="datetime-local"] { color-scheme:dark; }
-    .actions { display:flex; gap:10px; margin-top:8px; }
-    button { padding:10px 14px; border-radius:10px; border:1px solid #2b3244; background:#161b2b; color:var(--fg); cursor:pointer; }
-    button.primary { border-color:#3a4156; background:#1a2032; }
-    button.accent { background:var(--accent); color:#000; border-color:#d4b24e; }
-    button.ghost { background:transparent; }
-    button:disabled { opacity:.6; cursor:not-allowed; }
-    table { width:100%; border-collapse:collapse; }
-    th, td { padding:10px 8px; border-bottom:1px solid #202635; font-size:14px; vertical-align:top; }
-    th { text-align:left; color:var(--muted); font-weight:600; }
-    td.actions { white-space:nowrap; }
-    .pill { padding:2px 8px; border-radius:999px; font-size:12px; display:inline-block; border:1px solid #2b3244; }
-    .ok { color:var(--ok); border-color:#245a3f; }
-    .warn { color:var(--warn); border-color:#5a3c24; }
-    .err { color:var(--err); border-color:#5a2424; }
-    .muted { color:var(--muted); }
-    .grid2 { display:grid; gap:14px; grid-template-columns: 1fr; }
-    @media (min-width:840px){ .grid2{ grid-template-columns: 1fr 1fr; } }
-    .right { text-align:right; }
-    .small { font-size:12px; }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>Offline Library — Borrowed Books (IndexedDB)</h1>
-  </header>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Offline Library (Minimal IndexedDB)</title>
 
-  <main>
-    <!-- Form -->
-    <section class="card">
-      <h2 style="margin-top:0;">Book Form</h2>
-      <div class="grid2">
-        <div class="row">
-          <div class="field">
-            <label for="id">ID (auto if empty)</label>
-            <input id="id" placeholder="leave empty to auto-generate" />
-          </div>
-          <div class="field">
-            <label for="title">Title</label>
-            <input id="title" placeholder="e.g., Introduction to Databases" />
-          </div>
-          <div class="field">
-            <label for="author">Author</label>
-            <input id="author" placeholder="e.g., Jane Doe" />
-          </div>
-        </div>
-        <div class="row">
-          <div class="field">
-            <label for="borrower">Borrower</label>
-            <input id="borrower" placeholder="e.g., Alice" />
-          </div>
-          <div class="field">
-            <label for="borrowedAt">Borrowed At (UTC)</label>
-            <input id="borrowedAt" type="datetime-local" />
-          </div>
-          <div class="field">
-            <label for="dueAt">Due At (UTC)</label>
-            <input id="dueAt" type="datetime-local" />
-          </div>
-        </div>
-      </div>
+<style>
+  body { font-family: system-ui, Arial, sans-serif; margin: 20px; }
+  label { display:block; margin-top:8px; }
+  input { width: 100%; max-width: 360px; padding: 6px; }
+  button { margin-top: 10px; padding: 6px 10px; }
+  table { border-collapse: collapse; margin-top: 16px; width: 100%; max-width: 980px; }
+  th, td { border: 1px solid #ddd; padding: 6px; text-align: left; font-size: 14px; }
+  small { color: #666; }
+</style>
 
-      <div class="actions">
-        <button class="accent" id="saveBtn">Save</button>
-        <button class="primary" id="clearBtn">Clear</button>
-        <button class="ghost" id="seedBtn" title="Insert a couple of sample records">Seed Demo</button>
-        <span id="status" class="muted small" style="margin-left:8px;"></span>
-      </div>
-    </section>
+<h1>Offline Library — Borrowed Books</h1>
 
-    <!-- Filters -->
-    <section class="card">
-      <h2 style="margin-top:0;">Filter</h2>
-      <div class="row">
-        <div class="field" style="max-width:340px;">
-          <label for="search">Search (title / author / borrower)</label>
-          <input id="search" placeholder="Type to filter…" />
-        </div>
-        <div class="field" style="max-width:220px;">
-          <label for="statusFilter">Status</label>
-          <select id="statusFilter">
-            <option value="all">All</option>
-            <option value="on-time">On Time</option>
-            <option value="due-today">Due Today</option>
-            <option value="overdue">Overdue</option>
-          </select>
-        </div>
-        <div class="field" style="max-width:220px;">
-          <label>&nbsp;</label>
-          <button id="refreshBtn" class="primary">Refresh</button>
-        </div>
-      </div>
-    </section>
+<section>
+  <label>ID (leave empty for auto)</label>
+  <input id="id" placeholder="auto" />
 
-    <!-- Table -->
-    <section class="card">
-      <div class="row" style="justify-content:space-between; align-items:center;">
-        <h2 style="margin:0;">Borrowed Books</h2>
-        <div class="muted small" id="countLabel"></div>
-      </div>
-      <div style="overflow:auto;">
-        <table id="booksTable">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Title / Author</th>
-              <th>Borrower</th>
-              <th>Borrowed At</th>
-              <th>Due At</th>
-              <th>Status</th>
-              <th class="right">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="tbody">
-            <!-- rows injected here -->
-          </tbody>
-        </table>
-      </div>
-    </section>
-  </main>
+  <label>Title</label>
+  <input id="title" placeholder="Introduction to Databases" />
 
-  <script>
-    // ---------- Utilities ----------
-    const isoNow = () => new Date().toISOString();
-    const toISO = (localValue) => {
-      // input type=datetime-local returns "YYYY-MM-DDTHH:MM"
-      if (!localValue) return null;
-      const d = new Date(localValue);
-      if (Number.isNaN(d.getTime())) return null;
-      return d.toISOString();
+  <label>Author</label>
+  <input id="author" placeholder="Jane Doe" />
+
+  <label>Borrower</label>
+  <input id="borrower" placeholder="Alice" />
+
+  <label>Borrowed At (UTC)</label>
+  <input id="borrowedAt" type="datetime-local" />
+
+  <label>Due At (UTC)</label>
+  <input id="dueAt" type="datetime-local" />
+
+  <div>
+    <button id="save">Save</button>
+    <button id="clear">Clear</button>
+  </div>
+  <small id="msg"></small>
+</section>
+
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Title / Author</th>
+      <th>Borrower</th>
+      <th>Borrowed At</th>
+      <th>Due At</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table>
+
+<script>
+  // ---- tiny helpers ----
+  const $ = (id) => document.getElementById(id);
+  const isoNow = () => new Date().toISOString();
+  const toISO = (local) => local ? new Date(local).toISOString() : null;
+  const toLocal = (iso) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const p = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  };
+  const say = (t, ms=1500) => { $("msg").textContent = t; if (ms) setTimeout(()=>$("msg").textContent="", ms); };
+
+  // ---- db ----
+  let db;
+  const DB = "libraryDB", STORE = "books";
+  const openDB = () => new Promise((res, rej) => {
+    const r = indexedDB.open(DB, 1);
+    r.onupgradeneeded = () => {
+      const db = r.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        db.createObjectStore(STORE, { keyPath: "id" });
+      }
     };
-    const toLocalInputValue = (iso) => {
-      if (!iso) return "";
-      const d = new Date(iso);
-      if (Number.isNaN(d.getTime())) return "";
-      // to "YYYY-MM-DDTHH:MM"
-      const pad = (n) => String(n).padStart(2, "0");
-      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    };
-    const genId = () => (crypto && crypto.randomUUID) ? crypto.randomUUID() : Math.random().toString(16).slice(2);
+    r.onsuccess = () => (db = r.result, res(db));
+    r.onerror = () => rej(r.error);
+  });
+  const store = (mode="readonly") => db.transaction(STORE, mode).objectStore(STORE);
+  const put = (x) => new Promise((res, rej) => { const q = store("readwrite").put(x); q.onsuccess=()=>res(); q.onerror=()=>rej(q.error); });
+  const del = (id) => new Promise((res, rej) => { const q = store("readwrite").delete(id); q.onsuccess=()=>res(); q.onerror=()=>rej(q.error); });
+  const all = () => new Promise((res, rej) => { const q = store().getAll(); q.onsuccess=()=>res(q.result||[]); q.onerror=()=>rej(q.error); });
 
-    const $ = (id) => document.getElementById(id);
-    const setStatus = (msg, ms=1600) => {
-      const el = $("status");
-      el.textContent = msg;
-      if (ms) setTimeout(()=>{ el.textContent=""; }, ms);
+  // ---- ui ----
+  function clearForm() {
+    $("id").value = "";
+    $("title").value = "";
+    $("author").value = "";
+    $("borrower").value = "";
+    $("borrowedAt").value = "";
+    $("dueAt").value = "";
+  }
+
+  async function save() {
+    const id = $("id").value.trim() || (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(16).slice(2));
+    const title = $("title").value.trim();
+    const author = $("author").value.trim();
+    if (!title || !author) return say("Title and Author required", 2000);
+
+    const book = {
+      id,
+      title,
+      author,
+      borrower: $("borrower").value.trim(),
+      borrowedAt: toISO($("borrowedAt").value),
+      dueAt: toISO($("dueAt").value),
+      metadata: { updatedAt: isoNow(), createdAt: isoNow() }
     };
 
-    // ---------- IndexedDB Setup ----------
-    const DB_NAME = "libraryDB";
-    const DB_VERSION = 1;
-    const STORE = "books";
-    /** @type {IDBDatabase|null} */
-    let db = null;
+    // preserve createdAt if updating
+    const existing = (await all()).find(b => b.id === id);
+    if (existing?.metadata?.createdAt) book.metadata.createdAt = existing.metadata.createdAt;
 
-    function openDB() {
-      return new Promise((resolve, reject) => {
-        const req = indexedDB.open(DB_NAME, DB_VERSION);
-        req.onupgradeneeded = (e) => {
-          const db = /** @type {IDBDatabase} */(e.target.result);
-          if (!db.objectStoreNames.contains(STORE)) {
-            const store = db.createObjectStore(STORE, { keyPath: "id" });
-            store.createIndex("title", "title", { unique: false });
-            store.createIndex("author", "author", { unique: false });
-            store.createIndex("borrower", "borrower", { unique: false });
-            store.createIndex("dueAt", "dueAt", { unique: false });
-          }
-        };
-        req.onsuccess = () => { db = req.result; resolve(db); };
-        req.onerror = () => reject(req.error);
-      });
+    await put(book);
+    say("Saved");
+    clearForm();
+    render();
+  }
+
+  async function edit(id) {
+    const b = (await all()).find(x => x.id === id);
+    if (!b) return;
+    $("id").value = b.id;
+    $("title").value = b.title || "";
+    $("author").value = b.author || "";
+    $("borrower").value = b.borrower || "";
+    $("borrowedAt").value = toLocal(b.borrowedAt);
+    $("dueAt").value = toLocal(b.dueAt);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function remove(id) {
+    if (!confirm("Delete this record?")) return;
+    await del(id);
+    say("Deleted");
+    render();
+  }
+
+  async function render() {
+    const list = await all();
+    list.sort((a,b) => (Date.parse(a.dueAt||"")||Infinity) - (Date.parse(b.dueAt||"")||Infinity));
+    const tbody = $("rows");
+    tbody.innerHTML = "";
+    for (const b of list) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${esc(b.id)}</td>
+        <td><strong>${esc(b.title)}</strong><br><small>${esc(b.author)}</small></td>
+        <td>${esc(b.borrower||"")}</td>
+        <td><small>${b.borrowedAt ? new Date(b.borrowedAt).toLocaleString() : "—"}</small></td>
+        <td><small>${b.dueAt ? new Date(b.dueAt).toLocaleString() : "—"}</small></td>
+        <td>
+          <button onclick="edit('${b.id.replace(/'/g, "\\'")}')">Edit</button>
+          <button onclick="remove('${b.id.replace(/'/g, "\\'")}')">Delete</button>
+        </td>`;
+      tbody.appendChild(tr);
     }
+  }
 
-    function tx(storeName, mode="readonly") {
-      return db.transaction(storeName, mode).objectStore(storeName);
-    }
+  function esc(s){ return String(s||"").replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
 
-    // ---------- CRUD ----------
-    async function addOrUpdateBook(book) {
-      return new Promise((resolve, reject) => {
-        const store = tx(STORE, "readwrite");
-        const req = store.put(book);
-        req.onsuccess = () => resolve(true);
-        req.onerror = () => reject(req.error);
-      });
-    }
+  // ---- boot ----
+  (async function init(){
+    await openDB();
+    // set defaults: borrowedAt now, dueAt +14d
+    const now = new Date(), plus14 = new Date(now.getTime() + 14*86400000);
+    $("borrowedAt").value = toLocal(now.toISOString());
+    $("dueAt").value = toLocal(plus14.toISOString());
 
-    async function deleteBook(id) {
-      return new Promise((resolve, reject) => {
-        const store = tx(STORE, "readwrite");
-        const req = store.delete(id);
-        req.onsuccess = () => resolve(true);
-        req.onerror = () => reject(req.error);
-      });
-    }
-
-    async function getAllBooks() {
-      return new Promise((resolve, reject) => {
-        const store = tx(STORE, "readonly");
-        const req = store.getAll();
-        req.onsuccess = () => resolve(req.result || []);
-        req.onerror = () => reject(req.error);
-      });
-    }
-
-    // ---------- UI Bindings ----------
-    function clearForm() {
-      $("id").value = "";
-      $("title").value = "";
-      $("author").value = "";
-      $("borrower").value = "";
-      $("borrowedAt").value = "";
-      $("dueAt").value = "";
-    }
-
-    async function onSave() {
-      const id = $("id").value.trim() || genId();
-      const title = $("title").value.trim();
-      const author = $("author").value.trim();
-      const borrower = $("borrower").value.trim();
-      const borrowedAt = toISO($("borrowedAt").value);
-      const dueAt = toISO($("dueAt").value);
-
-      if (!title || !author) {
-        setStatus("Title and Author are required.", 2200);
-        return;
-      }
-      const book = { id, title, author, borrower, borrowedAt, dueAt, metadata: { updatedAt: isoNow(), createdAt: isoNow() } };
-      // If record exists, keep existing createdAt
-      const existing = (await getAllBooks()).find(b => b.id === id);
-      if (existing && existing.metadata?.createdAt) {
-        book.metadata.createdAt = existing.metadata.createdAt;
-      }
-
-      await addOrUpdateBook(book);
-      setStatus("Saved.");
-      clearForm();
-      await refreshTable();
-    }
-
-    async function onEdit(id) {
-      const books = await getAllBooks();
-      const b = books.find(x => x.id === id);
-      if (!b) return;
-      $("id").value = b.id;
-      $("title").value = b.title || "";
-      $("author").value = b.author || "";
-      $("borrower").value = b.borrower || "";
-      $("borrowedAt").value = toLocalInputValue(b.borrowedAt);
-      $("dueAt").value = toLocalInputValue(b.dueAt);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-
-    async function onDelete(id) {
-      if (!confirm("Delete this record?")) return;
-      await deleteBook(id);
-      setStatus("Deleted.");
-      await refreshTable();
-    }
-
-    function statusBadge(dueAt) {
-      if (!dueAt) return '<span class="pill">—</span>';
-      const now = new Date();
-      const due = new Date(dueAt);
-      const dOnly = (dt)=> new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
-      const today = dOnly(now).getTime();
-      const dueDay = dOnly(due).getTime();
-
-      if (dueDay < today) return '<span class="pill err">Overdue</span>';
-      if (dueDay === today) return '<span class="pill warn">Due Today</span>';
-      return '<span class="pill ok">On Time</span>';
-    }
-
-    function matchesFilter(book, q, statusMode) {
-      const hay = (s) => (s || "").toLowerCase();
-      const hit = hay(book.title).includes(q) || hay(book.author).includes(q) || hay(book.borrower).includes(q);
-      if (!hit) return false;
-
-      if (statusMode === "all") return true;
-      const now = new Date();
-      const due = book.dueAt ? new Date(book.dueAt) : null;
-      if (!due) return false;
-
-      const dOnly = (dt)=> new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
-      const today = dOnly(now).getTime();
-      const dueDay = dOnly(due).getTime();
-
-      if (statusMode === "overdue") return dueDay < today;
-      if (statusMode === "due-today") return dueDay === today;
-      if (statusMode === "on-time") return dueDay > today;
-      return true;
-    }
-
-    async function refreshTable() {
-      const q = $("search").value.trim().toLowerCase();
-      const statusMode = $("statusFilter").value;
-      const tbody = $("tbody");
-      tbody.innerHTML = "";
-      const books = await getAllBooks();
-
-      // sort by dueAt ascending, then title
-      books.sort((a,b)=>{
-        const da = a.dueAt ? Date.parse(a.dueAt) : Infinity;
-        const db = b.dueAt ? Date.parse(b.dueAt) : Infinity;
-        if (da !== db) return da - db;
-        return (a.title||"").localeCompare(b.title||"");
-      });
-
-      let shown = 0;
-      for (const b of books) {
-        if (q || statusMode !== "all") {
-          if (!matchesFilter(b, q, statusMode)) continue;
-        }
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td class="small">${b.id}</td>
-          <td><div><strong>${escapeHtml(b.title || "")}</strong></div><div class="muted small">${escapeHtml(b.author || "")}</div></td>
-          <td>${escapeHtml(b.borrower || "")}</td>
-          <td class="small">${b.borrowedAt ? new Date(b.borrowedAt).toLocaleString() : "—"}</td>
-          <td class="small">${b.dueAt ? new Date(b.dueAt).toLocaleString() : "—"}</td>
-          <td>${statusBadge(b.dueAt)}</td>
-          <td class="actions right">
-            <button class="primary" onclick="onEdit('${b.id.replaceAll("'","\\'")}')">Edit</button>
-            <button onclick="onDelete('${b.id.replaceAll("'","\\'")}')">Delete</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-        shown++;
-      }
-      $("countLabel").textContent = `${shown} shown / ${books.length} total`;
-    }
-
-    // very small HTML escaper for safe rendering
-    function escapeHtml(s) {
-      return (s||"").replace(/[&<>"']/g, c => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-      }[c]));
-    }
-
-    // ---------- Seed ----------
-    async function seedDemo() {
-      const now = new Date();
-      const d1 = new Date(now.getTime() + 3*24*60*60*1000);
-      const d2 = new Date(now.getTime() - 1*24*60*60*1000);
-      const sample = [
-        { id: genId(), title:"Introduction to Databases", author:"Jane Doe", borrower:"Alice",
-          borrowedAt: isoNow(), dueAt: d1.toISOString(), metadata:{createdAt:isoNow(),updatedAt:isoNow()} },
-        { id: genId(), title:"NoSQL in Practice", author:"John Smith", borrower:"Bob",
-          borrowedAt: isoNow(), dueAt: d2.toISOString(), metadata:{createdAt:isoNow(),updatedAt:isoNow()} },
-      ];
-      for (const b of sample) await addOrUpdateBook(b);
-      setStatus("Seeded 2 records.");
-      await refreshTable();
-    }
-
-    // ---------- Init ----------
-    window.addEventListener("DOMContentLoaded", async () => {
-      try {
-        await openDB();
-        $("saveBtn").addEventListener("click", onSave);
-        $("clearBtn").addEventListener("click", clearForm);
-        $("seedBtn").addEventListener("click", seedDemo);
-        $("refreshBtn").addEventListener("click", refreshTable);
-        $("search").addEventListener("input", refreshTable);
-        $("statusFilter").addEventListener("change", refreshTable);
-
-        // default borrowedAt to now, dueAt +14 days
-        const now = new Date();
-        const plus14 = new Date(now.getTime() + 14*24*60*60*1000);
-        $("borrowedAt").value = toLocalInputValue(now.toISOString());
-        $("dueAt").value = toLocalInputValue(plus14.toISOString());
-
-        await refreshTable();
-      } catch (err) {
-        console.error(err);
-        setStatus("Error opening database.", 4000);
-        alert("IndexedDB not available or failed to open.");
-      }
-    });
-  </script>
-</body>
+    $("save").onclick = save;
+    $("clear").onclick = clearForm;
+    await render();
+  })();
+</script>
 </html>
