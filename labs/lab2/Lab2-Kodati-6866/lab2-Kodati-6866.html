@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>IndexedDB Lab-2 Creation of Objects + Metadata </title>
+</head>
+<body>
+  <h2>Lab-2 : Add Metadata and UTC Dates</h2>
+  <button id="prepareBtn">Prepare Data</button>
+  <pre id="out"></pre>
+
+  <script>
+  const DB_NAME = "Lab2";
+  const STORE = "Sensors";
+  let db;
+
+  // Open DB
+  const request = indexedDB.open(DB_NAME, 1);
+  request.onupgradeneeded = e => {
+    db = e.target.result;
+    if(!db.objectStoreNames.contains(STORE)){
+      db.createObjectStore(STORE, { keyPath: "id" });
+    }
+  };
+  request.onsuccess = e => db = e.target.result;
+  request.onerror = e => console.error("DB error:", e.target.error);
+
+  // Build base objects (IDs 1...10)
+  const baseObjects = Array.from({length:10}, (_,i)=>i+1).map(id => ({
+    id,
+    sensorId: "S" + id,
+    reading: Math.floor(Math.random()*100),
+    timestamp: new Date(Date.now() + id*1000).toISOString(),
+    notes: "Record for sensor " + id
+  }));
+
+  // Create metadata
+  const metadata = {
+    author: "Pavan Sriram Kodati",   // <-- Replace with your actual name
+    last_sync: new Date().toISOString(), // UTC ISO timestamp
+    uuid_source: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(16).slice(2)
+  };
+
+  // Prepare objects with metadata (map only)
+  const preparedObjects = baseObjects.map(obj => ({
+    ...obj,
+    timestamp: new Date(obj.timestamp).toISOString(), // ensure UTC
+    metadata
+  }));
+
+  // Insert prepared objects into IndexedDB
+  function insertPrepared(){
+    const tx = db.transaction(STORE,"readwrite");
+    const store = tx.objectStore(STORE);
+
+    preparedObjects.reduce((p,obj)=> p.then(()=> new Promise((res,rej)=>{
+      const req = store.put(obj); // put instead of add (update if exists)
+      req.onsuccess = res;
+      req.onerror = rej;
+    })), Promise.resolve())
+    .then(()=>{
+      document.getElementById("out").textContent =
+        "One prepared object with metadata:\n" + JSON.stringify(preparedObjects[0], null, 2);
+      console.log("Inserted prepared objects:", preparedObjects);
+    });
+  }
+
+  document.getElementById("prepareBtn").onclick = insertPrepared;
+  </script>
+</body>
+</html>
