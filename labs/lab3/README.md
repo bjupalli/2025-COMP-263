@@ -25,7 +25,6 @@ Copy `.env.template` → `.env`:
 cp .env.template .env
 ```
 
-Edit `.env` with your editor (`nano`, `vim`, or VS Code). It already contains the **class Neo4j** and **MongoDB Atlas** credentials.  
 
 ⚠️ **Never commit `.env`** to GitHub. It is already in `.gitignore`.  
 
@@ -104,35 +103,6 @@ Take **screenshots** of both results.
 
 ---
 
-## 📑 6. Deliverables
-
-1. **Screenshots**  
-   - Neo4j Browser graph (farms, devices, readings)  
-   - MongoDB Compass queries (`find({})` and filter by `sourceDB`)  
-
-2. **3-slide PPT** uploaded to GitHub under `labs/lab3-lastname-XXXX`:  
-   - Slide 1: Architecture & Data Flow  
-   - Slide 2: Lessons Learned  
-   - Slide 3: Challenges & Next Steps  
-
-3. **Code Submission**  
-   Push your updated Lab 3 code to GitHub under your folder:
-   ```
-   labs/lab3-lastname-XXXX/
-   ```
-   Replace `lastname` with your last name and `XXXX` with the last 4 digits of your student ID.  
-
-   Example:
-   ```
-   labs/lab3-doe-1234/
-   ```
-
-4. **Canvas Submission**  
-   - Upload a PDF with your screenshots.  
-   - Provide the link to your GitHub repo folder.  
-
----
-
 ## 🔧 Useful Bash Commands
 
 - Copy `.env.template` → `.env`:
@@ -164,8 +134,3 @@ Take **screenshots** of both results.
   ```
 
 ---
-
-## ⚠️ Notes
-- Use `.env` for all secrets (Neo4j & Mongo).  
-- Do **not** push `.env` to GitHub.  
-- Passwords will be reset or instance deleted after the lab due date.  
