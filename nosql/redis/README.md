@@ -4,7 +4,6 @@ This lab demonstrates how Redis caching can improve read performance for agricul
 
 ## Installing Redis
 
-### Windows (via WSL2 + Ubuntu)
 ```bash
 wsl --install -d Ubuntu
 sudo apt update
@@ -16,7 +15,7 @@ brew update
 brew install redis
 brew services start redis
 redis-cli ping   # → PONG
-
+```
 
 ## 1. Overview
 The server exposes two main GET endpoints:
