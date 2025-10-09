@@ -5,12 +5,14 @@ This lab demonstrates how Redis caching can improve read performance for agricul
 ## Installing Redis
 
 ```bash
+# Windows
 wsl --install -d Ubuntu
 sudo apt update
 sudo apt install -y redis-server
 sudo service redis-server start
 redis-cli ping   # → PONG
 
+# MAC
 brew update
 brew install redis
 brew services start redis
