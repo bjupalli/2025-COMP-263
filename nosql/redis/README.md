@@ -2,6 +2,21 @@
 
 This lab demonstrates how Redis caching can improve read performance for agricultural data stored in MongoDB. Students will compare latency between direct MongoDB reads and Redis-cached reads.
 
+## 0. Install Redis
+
+# Install Ubuntu in Windows
+wsl --install -d Ubuntu
+# Restart computer when prompted, then open Ubuntu terminal
+sudo apt update
+sudo apt install -y redis-server
+sudo service redis-server start
+redis-cli ping   # → PONG
+
+brew update
+brew install redis
+brew services start redis
+redis-cli ping   # → PONG
+
 ## 1. Overview
 The server exposes two main GET endpoints:
 - `/agriculture/mongo` — Reads documents directly from MongoDB  
