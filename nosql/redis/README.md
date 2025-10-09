@@ -6,7 +6,7 @@ This lab demonstrates how Redis caching can improve read performance for agricul
 
 # Install Ubuntu in Windows
 wsl --install -d Ubuntu
-# Restart computer when prompted, then open Ubuntu terminal
+### Restart computer when prompted, then open Ubuntu terminal
 sudo apt update
 sudo apt install -y redis-server
 sudo service redis-server start
