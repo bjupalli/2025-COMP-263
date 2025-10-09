@@ -94,7 +94,6 @@ graph LR
 ```
 
 ## 10. Author and Course Context
-**Author:** Dr. Solomon Berhe  
-**Course:** COMP-263 — Data Engineering / Database Architectures  
+**Author:** Dr. Berhe  
+**Course:** COMP-263
 **Institution:** University of the Pacific  
-This example supports in-class demonstrations on performance optimization and data pipeline efficiency.
