@@ -1,89 +1,155 @@
+// app.js (Node 14.15.1 compatible)
 require("dotenv").config();
 
-const express = require("express");
-const { MongoClient } = require("mongodb");
-const Redis = require("ioredis");
+var express = require("express");
+var MongoClient = require("mongodb").MongoClient;
+var Redis = require("ioredis");
 
-const app = express();
+var app = express();
 
-const PORT = process.env.PORT || 3000;
-const HOST = process.env.MONGO_HOST;   // e.g., mongodb+srv://cluster0.lixbqmp.mongodb.net
-const USER = process.env.MONGO_USER;   // comp263_2025
-const PASS = process.env.MONGO_PASS;   // your password
-const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
-const CACHE_TTL_SECONDS = Number(process.env.CACHE_TTL_SECONDS || 60);
+var PORT = process.env.PORT || 3000;
+var HOST = process.env.MONGO_HOST;
+var USER = process.env.MONGO_USER;
+var PASS = process.env.MONGO_PASS;
+var REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
+var CACHE_TTL_SECONDS = Number(process.env.CACHE_TTL_SECONDS || 60);
 
+// Validate env
 (function validateEnv() {
-  const missing = [];
+  var missing = [];
   if (!HOST) missing.push("MONGO_HOST");
   if (!USER) missing.push("MONGO_USER");
   if (!PASS) missing.push("MONGO_PASS");
-  if (missing.length) {
-    console.error("❌ Missing env var(s):", missing.join(", "));
-    console.error("   Make sure .env is next to app.js and contains those keys.");
+  if (missing.length > 0) {
+    console.error("Missing env var(s): " + missing.join(", "));
     process.exit(1);
   }
 })();
 
-const client = new MongoClient(`${HOST}/?retryWrites=true&w=majority`, {
+// Mongo client (v4)
+var client = new MongoClient(HOST + "/?retryWrites=true&w=majority", {
   useNewUrlParser: true,
   useUnifiedTopology: true,
   auth: { username: USER, password: PASS },
   authSource: "admin"
 });
 
-const redis = new Redis(REDIS_URL);
+// Redis client
+var redis = new Redis(REDIS_URL);
 
-let collection;
-(async function start() {
-  try {
-    console.log("⏳ Connecting to MongoDB...");
-    await client.connect();
-    await client.db("admin").command({ ping: 1 });
+var collection = null;
 
-    const db = client.db("Lab2");
-    collection = db.collection("Agriculture");
+// Startup
+(function start() {
+  client.connect()
+    .then(function () { return client.db("admin").command({ ping: 1 }); })
+    .then(function () {
+      var db = client.db("Lab2");
+      collection = db.collection("Agriculture");
+      return collection.estimatedDocumentCount();
+    })
+    .then(function (count) {
+      var hostClean = (HOST || "").replace(/^mongodb\+srv:\/\//, "");
+      console.log("Connected to " + hostClean);
+      console.log("Lab2.Agriculture docs: " + count);
 
-    const host = HOST.replace(/^mongodb\+srv:\/\//, "");
-    const count = await collection.estimatedDocumentCount();
-    console.log(`✅ Connected to ${host}`);
-    console.log(`📚 Lab2.Agriculture docs: ${count}`);
+      redis.on("connect", function () { console.log("Redis connected: " + REDIS_URL); });
+      redis.on("error", function (e) { console.error("Redis error:", e && e.message ? e.message : e); });
 
-    redis.on("connect", () => console.log("✅ Redis connected:", REDIS_URL));
-    redis.on("error", (e) => console.error("❌ Redis error:", e.message));
-
-    app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
-  } catch (err) {
-    console.error("❌ DB connection error:", err.message || err);
-    process.exit(1);
-  }
+      app.listen(PORT, function () {
+        console.log("Server running at http://localhost:" + PORT);
+      });
+    })
+    .catch(function (err) {
+      console.error("DB connection error:", err && err.message ? err.message : err);
+      process.exit(1);
+    });
 })();
 
 // Timing helpers
 function withTimer(handler) {
-  return async (req, res) => {
-    const t0 = process.hrtime.bigint();
-    try {
-      await handler(req, res, t0);
-    } catch (e) {
+  return function (req, res) {
+    var start = process.hrtime.bigint();
+    Promise.resolve(handler(req, res, start)).catch(function (e) {
+      console.error("Handler error:", e);
       res.status(500).json({ error: String(e) });
-    }
+    });
   };
 }
-function elapsedMs(t0) {
-  return Number((process.hrtime.bigint() - t0) / 1000000n);
+function elapsedMs(start) {
+  return Number((process.hrtime.bigint() - start) / 1000000n);
 }
 
-// Baseline: Mongo only (limit for readability)
-app.get("/agriculture/mongo", withTimer(async (req, res, t0) => {
+// GET /agriculture/mongo
+app.get("/agriculture/mongo", withTimer(function (req, res, start) {
   if (!collection) return res.status(503).send("Database not initialized");
-  const docs = await collection.find({}).limit(500).toArray();
-  const body = { source: "mongo", timeMs: elapsedMs(t0), count: docs.length, data: docs };
-  res.set("X-Response-Time", body.timeMs + "ms").json(body);
+  collection.find({}).limit(500).toArray()
+    .then(function (docs) {
+      var body = { source: "mongo", timeMs: elapsedMs(start), count: docs.length, data: docs };
+      res.set("X-Response-Time", body.timeMs + "ms").json(body);
+    })
+    .catch(function (e) { res.status(500).json({ error: String(e) }); });
 }));
 
-// Redis cached
-app.get("/agriculture/redis", withTimer(async (req, res, t0) => {
+// GET /agriculture/redis
+app.get("/agriculture/redis", withTimer(function (req, res, start) {
   if (!collection) return res.status(503).send("Database not initialized");
 
-  // Optional: simple query param affects key (exten
+  var crop = (req.query && req.query.crop ? String(req.query.crop) : "").toLowerCase();
+  var key = "agri:all:limit500" + (crop ? ":crop=" + crop : "");
+
+  redis.get(key).then(function (cached) {
+    if (cached) {
+      var data = JSON.parse(cached);
+      var bodyCached = { source: "redis", timeMs: elapsedMs(start), count: data.length, data: data };
+      res.set("X-Response-Time", bodyCached.timeMs + "ms").json(bodyCached);
+      return null; // stop chain
+    }
+    var query = crop ? { crop: { $regex: "^" + crop + "$", $options: "i" } } : {};
+    return collection.find(query).limit(500).toArray()
+      .then(function (docs) {
+        return redis.set(key, JSON.stringify(docs), "EX", CACHE_TTL_SECONDS)
+          .then(function () {
+            var bodyNew = { source: "mongo->redis(set)", timeMs: elapsedMs(start), count: docs.length, data: docs };
+            res.set("X-Response-Time", bodyNew.timeMs + "ms").json(bodyNew);
+          });
+      });
+  }).catch(function (e) {
+    res.status(500).json({ error: String(e) });
+  });
+}));
+
+// POST /agriculture/refresh
+app.post("/agriculture/refresh", withTimer(function (req, res, start) {
+  redis.keys("agri:*")
+    .then(function (keys) {
+      if (!keys || keys.length === 0) return 0;
+      return redis.del(keys);
+    })
+    .then(function (deleted) {
+      var body = { ok: true, deletedKeys: deleted || 0, timeMs: elapsedMs(start) };
+      res.set("X-Response-Time", body.timeMs + "ms").json(body);
+    })
+    .catch(function (e) { res.status(500).json({ error: String(e) }); });
+}));
+
+// GET /health
+app.get("/health", function (req, res) {
+  res.json({
+    ok: !!collection,
+    redis: redis.status,
+    cluster: (HOST || "").replace(/^mongodb\+srv:\/\//, "")
+  });
+});
+
+// GET /debug/agriculture
+app.get("/debug/agriculture", withTimer(function (req, res, start) {
+  if (!collection) return res.status(503).send("Database not initialized");
+  collection.estimatedDocumentCount()
+    .then(function (count) { return collection.find({}).limit(5).toArray().then(function (sample) { return { count: count, sample: sample }; }); })
+    .then(function (r) {
+      var body = { db: "Lab2", collection: "Agriculture", count: r.count, sample: r.sample, timeMs: elapsedMs(start) };
+      res.set("X-Response-Time", body.timeMs + "ms").json(body);
+    })
+    .catch(function (e) { res.status(500).json({ error: String(e) }); });
+}));

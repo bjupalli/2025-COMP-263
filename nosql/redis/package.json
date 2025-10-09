@@ -1,7 +1,7 @@
 {
   "name": "redis-mongo-agriculture",
   "version": "1.0.0",
-  "description": "Node.js demo showing how Redis caching improves MongoDB read performance for agriculture data.",
+  "description": "Node.js demo showing Redis caching with MongoDB for agriculture data (Node 14 compatible).",
   "main": "app.js",
   "type": "commonjs",
   "scripts": {
@@ -9,26 +9,16 @@
     "dev": "nodemon app.js"
   },
   "dependencies": {
-    "dotenv": "^16.4.5",
-    "express": "^4.21.1",
-    "ioredis": "^5.4.1",
-    "mongodb": "^6.10.0"
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "ioredis": "^5.8.1",
+    "mongodb": "^4.17.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=14.15.1"
   },
-  "keywords": [
-    "redis",
-    "mongodb",
-    "nodejs",
-    "express",
-    "cache",
-    "agriculture",
-    "performance"
-  ],
-  "author": "Dr. Berhe",
   "license": "MIT"
 }
